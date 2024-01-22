@@ -1,5 +1,6 @@
 package com.demo.customerservice.service;
 
+import com.demo.customerservice.BaseCustomerServiceApplicationTest;
 import com.demo.customerservice.client.ProductServiceClient;
 import com.demo.customerservice.dto.CreateUpdateOrderRequest;
 import com.demo.customerservice.dto.OrderResponse;
@@ -16,24 +17,24 @@ import com.demo.customerservice.repository.OrderRepository;
 import com.demo.customerservice.service.impl.CustomerOrderServiceImpl;
 import com.demo.customerservice.validation.message.Messages;
 import org.assertj.core.api.Assertions;
-import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.mock.mockito.MockBean;
+
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.when;
 
-import static org.mockito.Mockito.*;
-
-@ExtendWith(MockitoExtension.class)
-public class CustomerOrderServiceTest {
+public class CustomerOrderServiceTest extends BaseCustomerServiceApplicationTest {
     @InjectMocks
     private CustomerOrderServiceImpl service;
     @Mock
@@ -54,7 +55,6 @@ public class CustomerOrderServiceTest {
 
     @Test
     public void createOrderTest() {
-
 
         CreateUpdateOrderRequest createUpdateOrderRequest = new CreateUpdateOrderRequest();
         createUpdateOrderRequest.setCustomerId(getCustomerId().toString());
@@ -83,8 +83,7 @@ public class CustomerOrderServiceTest {
         Assertions.assertThat(orderResponse).isNotNull();
 
     }
-
-//    @Test
+    @Test
     public void createOrderTest_InvalidCustomerId() {
 
         CreateUpdateOrderRequest createUpdateOrderRequest = new CreateUpdateOrderRequest();
@@ -101,15 +100,19 @@ public class CustomerOrderServiceTest {
 
         when(customerRepository.findById(any())).thenReturn(Optional.empty());
 
-        when(orderRepository.save(any())).thenReturn(getOrderEntity(customerEntityOptional));
+        lenient().when(orderRepository.save(any())).thenReturn(getOrderEntity(customerEntityOptional));
 
-        when(productServiceClient.getProductById(any())).thenReturn(getProductResponse());
+        lenient().when(productServiceClient.getProductById(any())).thenReturn(getProductResponse());
 
-        when(orderProductRepository.save(any())).thenReturn(getOrderProduct(customerEntityOptional));
+        lenient().when(orderProductRepository.save(any())).thenReturn(getOrderProduct(customerEntityOptional));
 
-        doNothing().when(productOrderPublisher).publish(any(), any());
+        lenient().doNothing().when(productOrderPublisher).publish(any(), any());
 
-        assertThrows(IllegalArgumentException.class, () -> service.createOrder(createUpdateOrderRequest));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
+            service.createOrder(createUpdateOrderRequest);
+        });
+
+        assertEquals(String.format(Messages.CUSTOMER_IS_NOT_AVAILABLE, getCustomerId().toString()), exception.getMessage());
     }
 
     private OrderProductEntity getOrderProduct(Optional<CustomerEntity> customerEntityOptional) {
